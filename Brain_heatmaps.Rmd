@@ -95,7 +95,7 @@ DSS.m = c(0,0,0,0,
           .1,
           .1)
 
-#Create and attributes data frame
+#Create an attributes data frame
 attr.d = data.frame(regions,DSS.m)
 
 #First set of colors and color mappings

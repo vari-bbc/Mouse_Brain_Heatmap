@@ -1,0 +1,1062 @@
+---
+title: "Brain Heatmap Shiny Interface"
+author: "Daniella DeWeerd, Noah Lubben, and Zach Madaj"
+output: 
+  html_document:
+    code_folding: hide 
+    code_download: no
+    toc: yes
+    toc_float: yes
+runtime: shiny
+resource_files:
+- Raw_data.rds
+- data_1.fst
+- data_2.fst
+- data_3.fst
+- data_4.fst
+- data_5.fst
+- data_6.fst
+- data_7.fst
+- data_8.fst
+- data_9.fst
+- data_10.fst
+- data_11.fst
+- data_12.fst
+- data_13.fst
+- data_14.fst
+- data_15.fst
+- data_16.fst
+- data_17.fst
+- data_18.fst
+- data_19.fst
+- data_20.fst
+- data_21.fst
+- data_22.fst
+- data_23.fst
+- data_24.fst
+- data_25.fst
+- data_26.fst
+- data_27.fst
+- data_28.fst
+- data_29.fst
+- data_30.fst
+- data_31.fst
+- data_32.fst
+- data_33.fst
+- data_34.fst
+- data_35.fst
+- data_36.fst
+- data_37.fst
+- data_38.fst
+- data_39.fst
+- data_40.fst
+- data_41.fst
+- data_42.fst
+- data_43.fst
+- data_44.fst
+- data_45.fst
+- data_46.fst
+- data_47.fst
+- data_48.fst
+- data_49.fst
+- data_50.fst
+- data_51.fst
+- data_52.fst
+- data_53.fst
+- data_54.fst
+- data_55.fst
+- data_56.fst
+- data_57.fst
+- data_58.fst
+- data_59.fst
+- data_60.fst
+- data_61.fst
+- data_62.fst
+- data_63.fst
+- data_64.fst
+- data_65.fst
+- data_66.fst
+- data_67.fst
+- data_68.fst
+- data_69.fst
+- data_70.fst
+- data_71.fst
+- data_72.fst
+- data_73.fst
+- data_74.fst
+- data_75.fst
+- data_76.fst
+- data_77.fst
+- data_78.fst
+- data_79.fst
+- data_80.fst
+- data_81.fst
+- data_82.fst
+- data_83.fst
+- data_84.fst
+- data_85.fst
+- data_86.fst
+- data_87.fst
+- data_88.fst
+- data_89.fst
+- data_90.fst
+- data_91.fst
+- data_92.fst
+- data_93.fst
+- data_94.fst
+- data_95.fst
+- data_96.fst
+- data_97.fst
+- data_98.fst
+- data_99.fst
+- data_100.fst
+- data_101.fst
+- data_102.fst
+- data_103.fst
+- data_104.fst
+- data_105.fst
+- data_106.fst
+- data_107.fst
+- data_108.fst
+- data_109.fst
+- data_110.fst
+- data_111.fst
+- data_112.fst
+- data_113.fst
+- data_114.fst
+- data_115.fst
+- data_116.fst
+- data_117.fst
+- data_118.fst
+- data_119.fst
+- data_120.fst
+- data_121.fst
+- data_122.fst
+- data_123.fst
+- data_124.fst
+- data_125.fst
+- data_126.fst
+- data_127.fst
+- data_128.fst
+- data_129.fst
+- data_130.fst
+- data_131.fst
+- data_132.fst
+---
+
+
+```{r, include=FALSE}
+
+
+
+options(repos = BiocManager::repositories())
+
+getOption("repos")
+
+
+knitr::opts_chunk$set(echo=FALSE, fig.align='center', warning=FALSE, message=FALSE, dev=c('png','cairo_pdf'), cache=FALSE,error=FALSE,fig.width=10,fig.height=12)
+
+options(java.parameters = "-XmX1000000m")
+
+library(foreign)
+library(ggplot2)
+library(dplyr)
+library(gtools)
+library(data.table)
+library(grid)
+library(readxl)
+library(locfit)
+library(knitr)
+library(scales)
+library(shinyWidgets)
+library(emmeans)
+library(reshape2)
+library(grImport)
+library(akima)
+library(fst)
+library(MASS)
+library(gridExtra)
+library(sgpv)
+
+theme_opt = theme_classic(11) + theme(axis.text=element_text(size=11,family="Arial",color="black"),plot.title=element_text(size=11,family="Arial",color="black"),axis.title=element_text(size=11,family="Arial",color="black"),strip.text=element_text(size=11,family="Arial",color="black"),axis.text.x=element_text(size=11,family="Arial",angle=60,hjust=1,color="black"))  
+
+
+
+
+# # # # data = data[!is.na(data$X1),]
+rgns = readRDS("flippedTreeAssignments.rds")
+
+  rgns$daughter = tolower(rgns$daughter)
+  rgns$daughter = gsub("-","",rgns$daughter)
+  rgns$daughter = gsub("_","",rgns$daughter)
+  
+  rgns$parent = tolower(rgns$parent)
+  rgns$parent = gsub("-","",rgns$parent)
+  rgns$parent = gsub("_","",rgns$parent)
+  
+  
+# This code breaks Daniella's large rds file, which has all 132 figures into 132 individual feathr files for better efficiency
+# data = readRDS("/data/home/zachary.madaj/svgData.rds")
+# 
+# for(i in unique(data$keyName)){
+#   tmp = data[data$keyName==i,]
+#   tmp$X1 = tolower(paste0(tmp$X1,"_",tmp$hemi))
+#   tmp$X1 = gsub("_","",tmp$X1)
+#   tmp$X1 = gsub("-","",tmp$X1)
+#   tmp=subset(tmp,select = -c(hemi))
+#   fst::write_fst(tmp[as.numeric(as.character(rownames(tmp))) %% 6 == 1,], paste0('/data/home/zachary.madaj/Allen_Brain_Shiny_App/','data_',i,'.fst'), compress = 70)
+# }
+
+#Lemon Squeezer function for betareg
+lemon = function(x,N){
+  x_prime = (x*(N-1)+0.5)/N
+  return(x_prime)
+}
+
+
+
+plot.data = data.frame(X=1,mouse="Default",Region.ID = 1, mpi = 99,side="right",parent=NA,daughter=NA,genotype="None",treatment="None",sex="None",marker="None",displayValue = 1,value=1,Proportion=1,X1=NA)
+
+```
+
+
+# Brain Heatmaps {.tabset}
+
+## Raw data single figure
+* <span style="color: red;"> Warning: Trying to view all individual animals across all mpis, genotypes, and treatments may result in the app crashing and will otherwise take a long time to load.  </span>  
+
+
+```{r}
+
+process_plots = function(plot.data,fig,sum.lvl,m,k,g,t,l){
+   if(m == "All"){m = unique(plot.data$mpi)}
+   if(g == "All"){g = unique(plot.data$genotype)}
+   if(t == "All"){t = unique(plot.data$treatment)}
+   if(k == "All"){k = unique(plot.data$marker)}
+  
+     tmp = read.fst(path=paste0('data_',fig,'.fst'))
+  
+  if(l == "parent"){
+    plot.data$X1 = paste0(plot.data$parent,"_",tolower(plot.data$side))
+    tmp = tmp[gsub("left","",gsub("right","",tmp$X1)) %in% na.omit(tolower(rgns$parent)),]
+  } else {
+    plot.data$X1 = paste0(plot.data$daughter,"_",tolower(plot.data$side))
+    tmp = tmp[gsub("left","",gsub("right","",tmp$X1)) %in% na.omit(tolower(rgns$daughter)),]
+  }
+  plot.data$X1 = tolower(plot.data$X1)
+  plot.data$X1 = gsub("-","",plot.data$X1)
+  plot.data$X1 = gsub("_","",plot.data$X1)
+  # plot.data$X1[plot.data$X1 == "alvright"] = "aivright"
+  # plot.data$X1[plot.data$X1 == "alvleft"] = "aivleft"
+  # 
+   if(sum.lvl == "Median"){
+     agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1 +sex+ daughter,
+              data= subset(plot.data[plot.data$genotype %in% g & 
+                 plot.data$treatment %in% t &
+                 plot.data$mpi %in% m &
+                  plot.data$marker %in% k ,],
+                 select=c(X1,Proportion,genotype,treatment,mpi,marker,sex,daughter)),
+              function(x) {median(x,na.rm=T)})
+     
+     
+     agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1 + daughter,
+              data= agg.d,
+              function(x) {median(x,na.rm=T)})
+     
+     
+     agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1,
+              data= agg.d,
+              function(x) {median(x,na.rm=T)})
+     
+    raw = agg.d
+
+    raw$mouse = "Median"
+   } else if(sum.lvl == "Mean") {
+    agg.d = aggregate(logit(Proportion) ~ genotype +treatment + mpi+marker+X1 +sex+ daughter,
+              data= subset(plot.data[plot.data$genotype %in% g & 
+                 plot.data$treatment %in% t &
+                 plot.data$mpi %in% m &
+                  plot.data$marker %in% k,],
+                 select=c(X1,Proportion,genotype,treatment,mpi,marker,sex,daughter)),
+              function(x) {mean(x,na.rm=T)})
+
+     colnames(agg.d)[colnames(agg.d) == "logit(Proportion)"] = "Proportion"
+
+     
+     agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1 + daughter,
+              data= agg.d,
+              function(x) {mean(x,na.rm=T)})
+     
+
+     agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1,
+              data= agg.d,
+              function(x) {mean(x,na.rm=T)})
+    raw=agg.d
+    raw$Proportion = expit(raw$Proportion)
+    raw$mouse = "Mean"
+   } else {
+     raw = subset(plot.data[plot.data$genotype %in% g & 
+                 plot.data$treatment %in% t &
+                 plot.data$mpi %in% m &
+                 plot.data$marker %in% k,],
+                 select=c(mouse,X1,Proportion,genotype,treatment,mpi,marker))
+   }
+   # raw$Proportion = 100 * raw$Proportion
+   # colnames(raw)[colnames(raw) == "Proportion"] = "Percent"
+   
+   # tmp = tmp
+   # tmp$X1 = gsub("-","",tmp$X1)
+   # tmp$X1 = gsub("_","",tmp$X1)
+   # raw$X1 = gsub("_","",raw$X1)
+   # raw$X1 = gsub("-","",raw$X1)
+
+
+   
+   # tmp$mouse = 1
+   # tmp$genotype = "+/+"
+   # tmp$treatment = "0 MLi-2"
+   # tmp$mpi=6
+   # tmp$Proportion = rep(0.5)
+   tmp$X1 = gsub("-","",tmp$X1)
+   tmp$X1 = gsub("_","",tmp$X1)
+   if(sum.lvl != "Individual"){
+         filler = expand.grid(X1 = unique(tmp$X1[! tmp$X1 %in% raw$X1]), genotype = g,mpi = m, treatment = t, marker = k,mouse = sum.lvl)
+         filler$Proportion = NA
+         
+   } else {
+        filler = expand.grid(X1 = unique(tmp$X1[! tmp$X1 %in% raw$X1]), genotype = g,mpi = m, treatment = t, marker = k,mouse = unique(plot.data$mouse)) 
+        filler$Proportion = NA
+   }
+   
+   tmp = left_join(rbind(raw,filler),tmp,by="X1")
+   
+   
+   
+   tmp$treatment = factor(tmp$treatment,levels=unique(tmp$treatment)[order(as.numeric(gsub(" .*","",unique(tmp$treatment))))])
+
+   return(tmp)
+}
+
+shinyApp(
+  ui = fluidPage(
+     sidebarLayout(
+
+    # sidebar to demonstrate various slider options ----
+      sidebarPanel(
+        fileInput("annotation","Please input the csv file that has the annotation information."),
+        
+        numericInput("figure",
+                     label = "Figure Number",min = 1, max = 132, value = 96, step =1),
+        
+        selectInput("indv", label="Summary Level",
+                          c("Median","Mean","Individual")),
+        
+        
+        selectInput("lvl", label="Region Level",
+                          c("daughter","parent")),
+        
+        selectInput("mpi", label="Which mpi",
+                         c("All",unique(plot.data$mpi))),
+        
+        selectInput("geno", label="Genotypes to Plot",
+                         c("All",unique(plot.data$genotype))),
+        
+        selectInput("tx", label="Treatments to Plot",
+                         c("All",unique(plot.data$treatment))),
+        
+        selectInput("mrk", label="markers to Plot",
+                         c("All",unique(plot.data$marker))),
+        
+        actionButton("plot.button", "Plot data"),
+        
+        downloadButton('downloadPlot','Download Plot'),
+        downloadButton('downloadData','Download Data'),
+
+        
+        
+        width=3
+
+      ),
+     mainPanel(
+      plotOutput("pplt")
+      )
+    )
+  ),
+
+  server = function(input, output,session) {
+    vals <- reactiveValues(
+      upld.file = NULL
+    )
+    
+   observeEvent(input$annotation,{
+      file <- input$annotation
+      upld.file <- read.csv(file$datapath,header=T)
+      upld.file$value <- upld.file$displayValue
+        
+      upld.file$Proportion <- lemon(upld.file$value,length(unique(upld.file$mouse)))
+
+      updateSelectInput(session=session,inputId="mpi", label="Which mpi",
+                         choices=c("All",unique(upld.file$mpi)))
+        
+      updateSelectInput(session=session,inputId="geno", label="Genotypes to Plot",
+                         choices=c("All",unique(upld.file$genotype)))
+        
+      updateSelectInput(session=session,inputId="tx", label="Treatments to Plot",
+                         choices=c("All",unique(upld.file$treatment)))
+        
+      updateSelectInput(session=session,inputId="mrk", label="markers to Plot",
+                         choices=c("All",unique(upld.file$marker)))
+      
+      vals$upld.file <- upld.file
+  })
+    
+    observeEvent(input$plot.button,{
+      ss = process_plots(vals$upld.file,input$figure,input$indv,input$mpi,input$mrk,input$geno,input$tx,input$lvl)
+ 
+    output$pplt <-  renderPlot({p <- ggplot(ss, aes(x = x, y = y)) +
+    geom_polygon(aes(fill = Proportion, group = unique),color="black",size=.25) +
+    scale_y_reverse()+facet_grid(mouse+mpi+marker+genotype~treatment)+
+    theme_classic(12)+
+    coord_fixed() + 
+    scale_fill_gradientn(colours=rev(viridis::inferno(8)),na.value = "grey50",n.breaks=8)+ 
+    theme(axis.line=element_blank(),
+          axis.text.x=element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks=element_blank(),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),
+          panel.background=element_blank(),
+          panel.border=element_blank(),
+          panel.grid.major=element_blank(),
+          panel.grid.minor=element_blank(),
+          plot.background=element_blank(),
+          legend.position = "bottom",
+          legend.title = element_blank(),
+          legend.key.width = unit(3.5, 'cm'),
+          strip.background = element_blank())
+          
+          vals$p <- p 
+          
+          print(p)})
+     output$downloadPlot <- downloadHandler(
+           filename = function(){paste("exp_grps_plot",'.svg',sep='')},
+           content = function(file){
+            svg(file=file)
+             plot=print(vals$p)
+            dev.off()
+           }
+        )
+
+    output$downloadData <- downloadHandler(
+    filename = function() {
+      paste("exp_grps", ".csv", sep = "")
+    },
+    content = function(file) {
+      write.table(unique(subset(as.data.frame(ss),select= - c(x,y))), file=file, row.names = FALSE,sep=",")
+    }
+  )
+    })
+    },
+    
+  options = list(height = 800,width=1000)
+)
+
+```
+
+
+
+## Raw data multi-figure
+
+* Please input figures in a comma separated list, eg 67,75,96
+* <span style="color: red;"> Warning: Trying to view too many figures may result in the app crashing and will otherwise take a long time to load. </span>  
+
+
+```{r}
+
+# unique(plot.data$X1[which(! plot.data$X1 %in% data)])
+
+process_plots_multi = function(plot.data,fig,sum.lvl,m,k,g,t,l){
+   if(m == "All"){m = unique(plot.data$mpi)}
+   if(g == "All"){g = unique(plot.data$genotype)}
+   if(t == "All"){t = unique(plot.data$treatment)}
+   if(k == "All"){k = unique(plot.data$marker)}
+  if(l == "parent"){
+    plot.data$X1 = paste0(plot.data$parent_Region,"_",tolower(plot.data$side))
+  } else {
+    plot.data$X1 = paste0(plot.data$daughter,"_",tolower(plot.data$side))
+  }
+  plot.data$X1 = tolower(plot.data$X1)
+  plot.data$X1 = gsub("-","",plot.data$X1)
+  plot.data$X1 = gsub("_","",plot.data$X1)
+
+   if(sum.lvl == "Median"){
+     agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1 +sex+ daughter,
+              data= subset(plot.data[plot.data$genotype %in% g & 
+                 plot.data$treatment %in% t &
+                 plot.data$mpi %in% m &
+                 plot.data$marker %in% k,],
+                 select=c(X1,Proportion,genotype,treatment,mpi,marker,sex,daughter)),
+              function(x) {median(x,na.rm=T)})
+     
+     
+     agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1 + daughter,
+              data= agg.d,
+              function(x) {median(x,na.rm=T)})
+     
+     
+     agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1,
+              data= agg.d,
+              function(x) {median(x,na.rm=T)})
+     
+    raw = agg.d
+    raw$mouse = "Median"
+   } else if(sum.lvl == "Mean") {
+    agg.d = aggregate(logit(Proportion) ~ genotype +treatment + mpi+marker+X1 +sex+ daughter,
+              data= subset(plot.data[plot.data$genotype %in% g & 
+                 plot.data$treatment %in% t &
+                 plot.data$mpi %in% m &
+                 plot.data$marker %in% k
+                 ,],
+                 select=c(X1,Proportion,genotype,treatment,mpi,marker,sex,daughter)),
+              function(x) {mean(x,na.rm=T)})
+
+     colnames(agg.d)[colnames(agg.d) == "logit(Proportion)"] = "Proportion"
+
+     
+     agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1 + daughter,
+              data= agg.d,
+              function(x) {mean(x,na.rm=T)})
+     
+
+     agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1,
+              data= agg.d,
+              function(x) {mean(x,na.rm=T)})
+    raw=agg.d
+    raw$Proportion = expit(raw$Proportion)
+    raw$mouse = "Mean"
+   } else {
+     raw = subset(plot.data[plot.data$genotype %in% g & 
+                 plot.data$treatment %in% t &
+                 plot.data$mpi %in% m &
+                 plot.data$marker %in% k
+                 ,],
+                 select=c(mouse,X1,Proportion,genotype,treatment,mpi,marker))
+   }
+   # raw$Proportion = 100 * raw$Proportion
+   # colnames(raw)[colnames(raw) == "Proportion"] = "Percent"
+   
+   # tmp = tmp
+   # tmp$X1 = gsub("-","",tmp$X1)
+   # tmp$X1 = gsub("_","",tmp$X1)
+   # raw$X1 = gsub("_","",raw$X1)
+
+   tmpp = NULL
+   figs = unlist(strsplit(as.character(fig),split = ","))
+   
+   for(f in figs){
+    tmp = read.fst(path=paste0('data_',f,'.fst'))
+    if(l == "parent"){
+      tmp = tmp[gsub("left","",gsub("right","",tmp$X1)) %in% na.omit(tolower(rgns$parent)),]
+    } else {
+      tmp = tmp[gsub("left","",gsub("right","",tmp$X1)) %in% na.omit(tolower(rgns$daughter)),]
+    }
+    tmp$unique = paste0(tmp$unique,tmp$X1)
+    tmp$X1 = gsub("-","",tmp$X1)
+    tmp$X1 = gsub("_","",tmp$X1)
+    tmp$Figure = rep(f)
+    tmpp = rbind(tmp,tmpp)
+   }
+   
+   tmpp$Figure = factor(tmpp$Figure,levels=figs)
+  
+   
+    if(sum.lvl != "Individual"){
+         filler = expand.grid(X1 = unique(tmpp$X1[! tmpp$X1 %in% raw$X1]), genotype = g,mpi = m, treatment = t, marker = k,mouse = sum.lvl)
+         filler$Proportion = NA
+         
+   } else {
+        filler = expand.grid(X1 = unique(tmpp$X1[! tmpp$X1 %in% raw$X1]), genotype = g,mpi = m, treatment = t, marker = k,mouse = unique(plot.data$mouse)) 
+        filler$Proportion = NA
+   }
+   
+   
+
+   return(left_join(rbind(raw,filler),tmpp,by="X1"))
+}
+
+shinyApp(
+  ui = fluidPage(
+     sidebarLayout(
+
+    # sidebar to demonstrate various slider options ----
+      sidebarPanel(
+        fileInput("annotation","Please input the csv file that has the annotation information."),
+        
+        # numericInput("figure",
+        #              label = "Figure Numbers",min = 1, max = 132, value = 96, step =1),
+        # 
+        textInput("figure", "Figure Numbers", value = "23,46,67,82,88,96"),
+
+        
+        selectInput("indv", label="Summary Level",
+                          c("Median","Mean")),
+        
+        
+        selectInput("lvl", label="Region Level",
+                          c("daughter","parent")),
+        
+        selectInput("mpi", label="Which MPI",
+                         c(unique(plot.data$mpi))),
+        
+        selectInput("geno", label="Genotype to Plot",
+                         c(unique(plot.data$genotype))),
+        
+        selectInput("tx", label="Treatment to Plot",
+                         c(unique(plot.data$treatment))),
+             
+        selectInput("mrk", label="markers to Plot",
+                         c(unique(plot.data$marker))),
+        
+        actionButton("plot.button", "Plot data"),
+
+        downloadButton('downloadPlot','Download Plot'),
+
+        downloadButton('downloadData','Download Data'),
+
+  
+
+        
+        width=3
+
+      ),
+     mainPanel(
+      plotOutput("pplt")
+      )
+    )
+  ),
+
+  server = function(input, output,session) {
+  
+    vals <- reactiveValues(
+      upld.file = NULL
+    )  
+    
+  observeEvent(input$annotation,{
+      file <- input$annotation
+      upld.file <- read.csv(file$datapath,header=T)
+      upld.file$value <- upld.file$displayValue
+        
+      upld.file$Proportion <- lemon(upld.file$value,length(unique(upld.file$mouse)))
+
+      updateSelectInput(session=session,inputId="mpi", label="Which mpi",
+                         choices=c(unique(upld.file$mpi)))
+        
+      updateSelectInput(session=session,inputId="geno", label="Genotypes to Plot",
+                         choices=c(unique(upld.file$genotype)))
+        
+      updateSelectInput(session=session,inputId="tx", label="Treatments to Plot",
+                         choices=c(unique(upld.file$treatment)))
+        
+      updateSelectInput(session=session,inputId="mrk", label="markers to Plot",
+                         choices=c(unique(upld.file$marker)))
+      
+      vals$upld.file <- upld.file
+      
+  })
+  
+  observeEvent(input$plot.button,{    
+    ss  = process_plots_multi(vals$upld.file,input$figure,input$indv,input$mpi,input$mrk,input$geno,input$tx,input$lvl)
+  # 
+  output$pplt <-  renderPlot({p<-ggplot(ss[!is.na(ss$Figure),], aes(x = x, y = y)) +
+  geom_polygon(aes(fill = Proportion, group = unique),color="black",size=.25) +
+  scale_y_reverse()+facet_wrap(~Figure,ncol=3)+
+  theme_classic(12)+
+  coord_fixed() + 
+  scale_fill_gradientn(colours=rev(viridis::inferno(8)),na.value = "grey50",n.breaks=8)+ 
+  theme(axis.line=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        panel.background=element_blank(),
+        panel.border=element_blank(),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        strip.text = element_text(size=18),
+        plot.background=element_blank(),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.key.width = unit(3.5, 'cm'),
+        strip.background = element_blank())
+  
+        vals$p <- p 
+        
+        
+        print(p)})
+  
+   output$downloadPlot <- downloadHandler(
+         filename = function(){paste("multi_fig_plot",'.svg',sep='')},
+         content = function(file){
+          svg(file=file)
+           plot=print(vals$p)
+          dev.off()
+         }
+      )
+
+    output$downloadData <- downloadHandler(
+    filename = function() {
+      paste("multi_fig", ".csv", sep = "")
+    },
+    content = function(file) {
+      write.table(unique(subset(as.data.frame(ss),select= - c(x,y))), file=file, row.names = FALSE,sep=",")
+    }
+  ) 
+    })
+    },
+    
+  options = list(height = 800,width=1000)
+)
+
+
+
+
+
+```
+
+## Analysis
+
+* <span style="color: red;"> Warning:   </span>  
+
+
+```{r}
+rankit = function(t) {qnorm((rank(t,ties="random")-0.5)/length(t))}
+
+models = function(test,method){
+    
+    
+  res = NULL
+  if(method == "Beta"){
+    #Future option
+  } else {
+    if(method == "Ordinal"){
+      if(length(unique(test$daughter)>1)){
+        if(length(unique(test$sex)>1)){
+          fit = try(rlm(rankit(ZachValue)~sex+daughter*group,data=test,maxit=100),
+                    silent=T)
+        } else {
+          fit = try(rlm(rankit(ZachValue)~daughter*group,data=test,maxit=100),
+                    silent=T)
+        }
+          if(! inherits(fit,"try-error")){
+            res = suppressMessages( rbind(data.frame(strata = test$strata[1],parent = gsub("_.*","",test$strata[1]), confint(emmeans(fit,pairwise~group|daughter,adjust="none")$contrasts)),
+            data.frame(strata = test$strata[1], daughter = "combined",parent = gsub("_.*","",test$strata[1]),confint(emmeans(fit,pairwise~group,adjust="none")$contrasts))))
+          } else {
+            res = rbind(data.frame(contrast = "fail",
+                                   strata = test$strata[1],
+                                   daughter = "combined",
+                                   parent = gsub("_.*","",test$strata[1]),
+                                   estimate= NA,SE=NA,df=NA,asymp.LCL = NA,asymp.UCL = NA),
+  
+                        data.frame(contrast = "fail",
+                                   strata = test$strata[1],
+                                   daughter = unique(test$daughter),
+                                   parent = gsub("_.*","",test$strata[1]),
+                                   estimate= NA,SE=NA,df=NA,asymp.LCL = NA,asymp.UCL = NA))
+          }
+        }
+        else {
+          if(length(unique(test$sex)>1)){
+            fit = rlm(rankit(ZachValue)~sex+group,data=test,maxit=100)
+          } else {
+             fit = rlm(rankit(ZachValue)~group,data=test,maxit=100)
+          }
+            if(! inherits(fit,"try-error")){
+              res = suppressMessages( rbind(data.frame(strata = test$strata[1],parent = gsub("_.*","",test$strata[1]), confint(emmeans(fit,pairwise~group,adjust="none")$contrasts),daughter =  gsub("_.*","",test$strata[1])),
+              data.frame(strata = test$strata[1], daughter = "combined",parent = gsub("_.*","",test$strata[1]),confint(emmeans(fit,pairwise~group,adjust="none")$contrasts))))
+            } else {
+              res = rbind(data.frame(contrast = "fail",
+                                     strata = test$strata[1],
+                                     daughter = "combined",
+                                     parent = gsub("_.*","",test$strata[1]),
+                                     estimate= NA,SE=NA,df=NA,asymp.LCL = NA,asymp.UCL = NA),
+    
+                          data.frame(contrast = "fail",
+                                     strata = test$strata[1],
+                                     daughter = gsub("_.*","",test$strata[1]),
+                                     parent = gsub("_.*","",test$strata[1]),
+                                     estimate= NA,SE=NA,df=NA,asymp.LCL = NA,asymp.UCL = NA))
+            }
+          }
+    }
+  }
+  return(res)
+}
+
+
+# t1 = Sys.time()
+# results = analyze_brains(df,"treatment","Ordinal")
+# t2 = Sys.time()
+# t2-t1
+
+# xx = NULL
+# for(x in strats){
+#     xx=rbind(xx, data.frame(x,cols=ncol(models(data[data$strata == x,],"Ordinal"))))
+# }
+
+process_p_plots = function(plot.data,fig,p.type,l){
+  plot.data$contrast = as.character(plot.data$contrast)
+  
+  plot.data = plot.data[plot.data$contrast !="fail",]
+  
+  tmp = read.fst(path=paste0('data_',fig,'.fst'))
+
+  if(l == "parent"){
+    plot.data$X1 = paste0(plot.data$parent,"_",tolower(plot.data$side))
+    tmp = tmp[gsub("left","",gsub("right","",tmp$X1)) %in% na.omit(tolower(rgns$parent)),]
+  } else {
+    plot.data$X1 = paste0(plot.data$daughter,"_",tolower(plot.data$side))
+    tmp = tmp[gsub("left","",gsub("right","",tmp$X1)) %in% na.omit(tolower(rgns$daughter)),]
+  }
+
+  plot.data$X1 = tolower(plot.data$X1)
+  plot.data$X1 = gsub("-","",plot.data$X1)
+  plot.data$X1 = gsub("_","",plot.data$X1)
+
+   if(p.type == "Raw"){
+     
+     plot.data$Significant = ifelse(plot.data$p < 0.05, "Significant","Inconclusive")
+     
+   } else if(p.type == "FDR") {
+     plot.data$Significant = ifelse(plot.data$FDR < 0.05, "Significant","Inconclusive")
+   } else {
+     plot.data$Significant = ifelse(plot.data$SGPV == 0, "Significant","Inconclusive")
+   }
+  
+   tmp$X1 = gsub("-","",tmp$X1)
+   tmp$X1 = gsub("_","",tmp$X1)
+   
+   filler = expand.grid(X1 = unique(tmp$X1[! tmp$X1 %in% plot.data$X1]), grouping = plot.data$grouping[1],Significant = NA,contrast=unique(plot.data$contrast))
+   
+   tmp = left_join(rbind(subset(plot.data,select=c(X1,grouping,Significant,contrast)),filler),tmp,by="X1",multiple="all")
+
+   return(tmp)
+}
+
+
+shinyApp(
+  ui = fluidPage(
+     
+     sidebarLayout(
+
+    # sidebar to demonstrate various slider options ----
+      sidebarPanel(
+
+        fileInput("annotation","Please input the csv file that has the annotation information."),
+
+        numericInput("null.l", label="Null interval for SGPV as a %",
+                          min=5,max=30,step=5,value=5),
+
+        selectInput("comp", label="What effect would you like to test?",
+                         c("genotype","mpi","treatment","marker")),
+
+        selectInput("method", label="Which regression method?",
+                         c("Ordinal")),
+        
+        actionButton("run.button", "Run analysis"),
+
+        numericInput("fig",
+             label = "Figure Number to plot",min = 1, max = 132, value = 96, step =1),
+
+        selectInput(inputId="plot.con", label="Which strata for brain plot",
+                         choices=""),
+        
+        selectInput(inputId="Region", label="Which Region to plot raw data",
+                         choices=""),
+        
+        selectInput("lvl", label="Which region level to plot",
+                          c("daughter","parent")),
+
+        selectInput("p.plot", label="Which P-value to use on plots",
+                         c("SGPV","Raw","FDR")),
+        
+        
+        actionButton("plot.button", "Plot data"),
+        downloadButton('downloadPlot','Download Brain Plot'),
+        downloadButton('downloadData','Download Results'),
+
+        width=3
+
+      ),
+     mainPanel(
+       column(8,progressBar(id = "pb4", value = 0, display_pct = T)),
+       textOutput("print"),
+       plotOutput("pplt"),
+       plotOutput("rawpplt")
+      )
+    )
+  ),
+
+
+
+
+  server = function(input, output,session) {
+    vals <- reactiveValues(upld.file = NULL, full_results = NULL)
+    
+    observeEvent(input$annotation,{
+      file <- input$annotation
+      upld.file <- read.table(file$datapath,header=T,sep=",")
+      upld.file = subset(upld.file,select= - c(X, Region.ID,displayValue))
+      upld.file$treatment = as.character(upld.file$treatment)
+      upld.file$mpi = as.character(upld.file$mpi)
+      upld.file$genotype = as.character(upld.file$genotype)
+      upld.file$marker = as.character(upld.file$marker)
+      
+      vals$upld.file <- upld.file
+      
+    })
+
+    observeEvent(input$run.button,{
+      if(length(vals$upld.file)==0){
+        output$print <- renderText({print("Please upload a data file first")})
+      } else {
+        strata = c("genotype","treatment","mpi","marker")
+        strata = strata[strata != input$comp]
+        cols=c("parent","side",strata)
+        upld.file = vals$upld.file
+        upld.file = tidyr::unite(upld.file, "strata", cols)
+        colnames(upld.file)[colnames(upld.file) == input$comp] = "group"
+  
+ 
+        if(length(unique(upld.file$group))<2){
+          output$print <- renderText({print("Not enough levels to test")})
+        } else {
+
+          filt = as.data.frame(table(subset(upld.file,select = c(strata,sex,group))))
+          
+          # unlist(lapply(unique(filt$strata), function(z) {if(sum(as.numeric(I(filt[filt$strata == z,]$Freq>2)))>2){return(z)}}))
+          # 
+          
+          filt.p2 = as.data.frame(table(filt[filt$Freq>2,1:2]))
+          
+          ix = filt.p2$strata[filt.p2$Freq < 2]
+          
+          strats = unique(upld.file$strata)[! unique(upld.file$strata) %in% ix]
+          
+          updateSelectInput(session=session,inputId="plot.con", label="Which strata to plot brain",
+                           choices=gsub("^.*?_","",gsub("^.*?_","",c(unique(strats)))))
+        
+          updateSelectInput(session=session,inputId="Region", label="Which region to plot raw data",
+                           choices=unique(upld.file$daughter))
+          
+
+          # print(upld.file[upld.file$strata == "Su3_left_WT_3_None",])
+          full_results  = rbindlist(lapply(strats, function(x){
+            updateProgressBar(session = session, id = "pb4", value = (which(x == strats)/length(strats))*100)
+            return(models(upld.file[upld.file$strata == x,],input$method))}),use.names=TRUE)
+    
+          full_results$contrast = gsub("group",input$comp,full_results$contrast)
+          full_results$p = 2*(1-pnorm(abs(full_results$estimate/full_results$SE)))
+          full_results$FDR = p.adjust(full_results$p)
+          
+          full_results$SGPV =  sgpvalue(
+            est.lo = full_results$asymp.LCL,
+            est.hi = full_results$asymp.UCL,
+            null.hi = rep(qnorm(.5+input$null.l/100),nrow(full_results)),
+            null.lo = rep(qnorm(.5-input$null.l/100),nrow(full_results)),
+            warnings=FALSE
+          )$p.delta
+          
+          full_results$side = ifelse(grepl('left',full_results$strata,fixed=T),"left","right")
+          
+          full_results$grouping = gsub("^.*?_","",gsub("^.*?_","",full_results$strata))
+          
+          full_results$method = rep(input$method)
+          
+          vals$full_results <- full_results
+          output$print <- renderText({print("You may now select plotting options")})
+          output$downloadData <- downloadHandler(
+          filename = function() {
+            paste("results", ".csv", sep = "")
+          },
+          content = function(file) {
+            write.table(as.data.frame(full_results), file=file, row.names = FALSE,sep=",")
+          }
+          )
+        }
+      }
+    })
+  
+   observeEvent(input$plot.button,{  
+      if(length(vals$full_results)>0){
+        # print(c(unique(vals$full_results$grouping),input$plot.con,input$fig, input$lvl))
+        pl <-process_p_plots(plot.data=vals$full_results[vals$full_results$grouping == input$plot.con ,],fig=input$fig,input$p.plot,input$lvl)
+    
+        output$pplt <-  renderPlot({p <- ggplot(pl, aes(x = x, y = y)) +
+        geom_polygon(aes(fill = Significant, group = unique),color="black",linewidth=.25) +
+        scale_y_reverse()+ facet_wrap(~contrast)+
+        theme_classic(12)+
+        coord_fixed() +
+        scale_fill_manual(values=c("Inconclusive" = "white","Significant" = "red"),na.value="white")+
+        theme(axis.line=element_blank(),
+              axis.text.x=element_blank(),
+              axis.text.y=element_blank(),
+              axis.ticks=element_blank(),
+              axis.title.x=element_blank(),
+              axis.title.y=element_blank(),
+              panel.background=element_blank(),
+              panel.border=element_blank(),
+              panel.grid.major=element_blank(),
+              panel.grid.minor=element_blank(),
+              plot.background=element_blank(),
+              legend.position = "bottom",
+              legend.title = element_blank(),
+              legend.key.width = unit(3.5, 'cm'),
+              strip.background = element_blank())
+    
+              vals$p <- p
+    
+              print(p)})
+        
+        rpl <- vals$upld.file
+        strata = c("genotype","treatment","mpi","marker")
+        strata = strata[strata != input$comp]
+        cols=c(strata)
+        rpl = tidyr::unite(rpl, "strata", cols)
+        colnames(rpl)[colnames(rpl) == input$comp] = "group"
+        rpl = rpl[rpl$strata == input$plot.con & rpl$daughter== input$Region,]
+        # print(c(colnames(rpl),input$comp))
+        
+        output$rawpplt <-  renderPlot({p2 <- ggplot(rpl, aes(x = group , y = ZachValue,shape=sex,color= group)) +
+        geom_boxplot(aes(group=group),outlier.size=-1) +         
+        geom_jitter(size=2, height=0,width=.25 ) +
+        facet_wrap(~side)+
+        scale_color_viridis_d()+
+        theme_classic(14) +
+        xlab("")+ylab("Value")
+        theme(legend.title = element_blank())
+    
+              vals$p2 <- p2
+    
+              print(p2)})
+        
+        
+        
+        
+         output$downloadPlot <- downloadHandler(
+               filename = function(){paste("plot",'.svg',sep='')},
+               content = function(file){
+                svg(file=file)
+                 plot=print(vals$p)
+                dev.off()
+               }
+          )
+      }
+    })
+  },
+
+  options = list(height = 800,width=1000)
+)
+
+
+```

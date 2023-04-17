@@ -195,8 +195,10 @@ rgns = readRDS("flippedTreeAssignments.rds")
   rgns$parent = gsub("_","",rgns$parent)
   
   
-# This code breaks Daniella's large rds file, which has all 132 figures into 132 individual feathr files for better efficiency
+# This code breaks Daniella's large rds file, which has all 132 figures into 132 individual feather files for better efficiency
 # data = readRDS("/data/home/zachary.madaj/svgData.rds")
+# data=data[! data$X1 %in% c( "VS","fiber tracts"),]
+# 
 # 
 # for(i in unique(data$keyName)){
 #   tmp = data[data$keyName==i,]
@@ -221,6 +223,8 @@ plot.data = data.frame(X=1,mouse="Default",Region.ID = 1, mpi = 99,side="right",
 
 
 # Brain Heatmaps {.tabset}
+This app is free to use and modify as you (the user) see fit. To reference this app, you can cite the following https://doi.org/10.5281/zenodo.7760581 (webpage link:https://zenodo.org/record/7760581#.ZBsc4dLMJhE). We kindly ask that you make sure The Allen Brain Atlas is cited as the images are supplied from them.
+
 
 ## Raw data single figure
 * <span style="color: red;"> Warning: Trying to view all individual animals across all mpis, genotypes, and treatments may result in the app crashing and will otherwise take a long time to load.  </span>  
@@ -272,7 +276,7 @@ process_plots = function(plot.data,fig,sum.lvl,m,k,g,t,l){
 
     raw$mouse = "Median"
    } else if(sum.lvl == "Mean") {
-    agg.d = aggregate(logit(Proportion) ~ genotype +treatment + mpi+marker+X1 +sex+ daughter,
+    agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1 +sex+ daughter,
               data= subset(plot.data[plot.data$genotype %in% g & 
                  plot.data$treatment %in% t &
                  plot.data$mpi %in% m &
@@ -280,7 +284,7 @@ process_plots = function(plot.data,fig,sum.lvl,m,k,g,t,l){
                  select=c(X1,Proportion,genotype,treatment,mpi,marker,sex,daughter)),
               function(x) {mean(x,na.rm=T)})
 
-     colnames(agg.d)[colnames(agg.d) == "logit(Proportion)"] = "Proportion"
+     # colnames(agg.d)[colnames(agg.d) == "logit(Proportion)"] = "Proportion"
 
      
      agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1 + daughter,
@@ -292,7 +296,7 @@ process_plots = function(plot.data,fig,sum.lvl,m,k,g,t,l){
               data= agg.d,
               function(x) {mean(x,na.rm=T)})
     raw=agg.d
-    raw$Proportion = expit(raw$Proportion)
+    # raw$Proportion = expit(raw$Proportion)
     raw$mouse = "Mean"
    } else {
      raw = subset(plot.data[plot.data$genotype %in% g & 
@@ -393,7 +397,8 @@ shinyApp(
       upld.file <- read.csv(file$datapath,header=T)
       upld.file$value <- upld.file$displayValue
         
-      upld.file$Proportion <- lemon(upld.file$value,length(unique(upld.file$mouse)))
+      # upld.file$Proportion <- lemon(upld.file$value,length(unique(upld.file$mouse)))
+      upld.file$Proportion <- upld.file$value
 
       updateSelectInput(session=session,inputId="mpi", label="Which mpi",
                          choices=c("All",unique(upld.file$mpi)))
@@ -481,10 +486,13 @@ process_plots_multi = function(plot.data,fig,sum.lvl,m,k,g,t,l){
    if(t == "All"){t = unique(plot.data$treatment)}
    if(k == "All"){k = unique(plot.data$marker)}
   if(l == "parent"){
-    plot.data$X1 = paste0(plot.data$parent_Region,"_",tolower(plot.data$side))
+    plot.data$X1 = paste0(plot.data$parent,"_",tolower(plot.data$side))
   } else {
     plot.data$X1 = paste0(plot.data$daughter,"_",tolower(plot.data$side))
   }
+  
+  
+  
   plot.data$X1 = tolower(plot.data$X1)
   plot.data$X1 = gsub("-","",plot.data$X1)
   plot.data$X1 = gsub("_","",plot.data$X1)
@@ -511,7 +519,7 @@ process_plots_multi = function(plot.data,fig,sum.lvl,m,k,g,t,l){
     raw = agg.d
     raw$mouse = "Median"
    } else if(sum.lvl == "Mean") {
-    agg.d = aggregate(logit(Proportion) ~ genotype +treatment + mpi+marker+X1 +sex+ daughter,
+    agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1 +sex+ daughter,
               data= subset(plot.data[plot.data$genotype %in% g & 
                  plot.data$treatment %in% t &
                  plot.data$mpi %in% m &
@@ -520,7 +528,7 @@ process_plots_multi = function(plot.data,fig,sum.lvl,m,k,g,t,l){
                  select=c(X1,Proportion,genotype,treatment,mpi,marker,sex,daughter)),
               function(x) {mean(x,na.rm=T)})
 
-     colnames(agg.d)[colnames(agg.d) == "logit(Proportion)"] = "Proportion"
+     # colnames(agg.d)[colnames(agg.d) == "logit(Proportion)"] = "Proportion"
 
      
      agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1 + daughter,
@@ -532,7 +540,7 @@ process_plots_multi = function(plot.data,fig,sum.lvl,m,k,g,t,l){
               data= agg.d,
               function(x) {mean(x,na.rm=T)})
     raw=agg.d
-    raw$Proportion = expit(raw$Proportion)
+    # raw$Proportion = expit(raw$Proportion)
     raw$mouse = "Mean"
    } else {
      raw = subset(plot.data[plot.data$genotype %in% g & 
@@ -646,8 +654,8 @@ shinyApp(
       upld.file <- read.csv(file$datapath,header=T)
       upld.file$value <- upld.file$displayValue
         
-      upld.file$Proportion <- lemon(upld.file$value,length(unique(upld.file$mouse)))
-
+      # upld.file$Proportion <- lemon(upld.file$value,length(unique(upld.file$mouse)))
+      upld.file$Proportion <- upld.file$value
       updateSelectInput(session=session,inputId="mpi", label="Which mpi",
                          choices=c(unique(upld.file$mpi)))
         
@@ -726,11 +734,13 @@ shinyApp(
 
 ## Analysis
 
-* <span style="color: red;"> Warning:   </span>  
+* <span style="color: red;"> The analysis method is robust linear regression on rankit transformed outcomes. This method was chosen as there are often strata with no pathology (true zeros) while another comparative strata has mainly non-zeros. This analysis seeks to answer the question, which regions have more pathology.  An alternative method would be zero-inflated beta regression. However, this method is very time-consuming, but potentially more powerful. This app does not implement this method, but it may become available in future versions. Parent regions are included as fixed-effects as opposed to random to save compute time and because there are only a few daughter regions per parent. A mixed-effects model could yield better estimates of the standard error, but for fast and flexible analyses this was a calculated compromise.  For more information on second generation p-values, please view the publications: https://doi.org/10.1080/00031305.2018.1537893 and https://doi.org/10.1371/journal.pone.0188299. Another alternate method is a GAM mixed-effects model to account for spatial correlation across the entire brain; this is the most complicated model, but almost certainly the most powerful as it will have the most complete characterization of the covariance matrix. </span>  
 
 
 ```{r}
-rankit = function(t) {qnorm((rank(t,ties="random")-0.5)/length(t))}
+
+rankit = function(t) {qnorm((rank(t)-0.5)/length(t))}
+
 
 models = function(test,method){
     
@@ -822,15 +832,15 @@ process_p_plots = function(plot.data,fig,p.type,l){
   plot.data$X1 = tolower(plot.data$X1)
   plot.data$X1 = gsub("-","",plot.data$X1)
   plot.data$X1 = gsub("_","",plot.data$X1)
-
+  # print(head(plot.data))
    if(p.type == "Raw"){
      
-     plot.data$Significant = ifelse(plot.data$p < 0.05, "Significant","Inconclusive")
+     plot.data$Significant = ifelse(plot.data$p < 0.05, ifelse(plot.data$estimate <0 ,"Significantly Increased","Significantly Decreased"),"Inconclusive")
      
    } else if(p.type == "FDR") {
-     plot.data$Significant = ifelse(plot.data$FDR < 0.05, "Significant","Inconclusive")
+     plot.data$Significant = ifelse(plot.data$FDR < 0.05, ifelse(plot.data$estimate <0 ,"Significantly Increased","Significantly Decreased"),"Inconclusive")
    } else {
-     plot.data$Significant = ifelse(plot.data$SGPV == 0, "Significant","Inconclusive")
+     plot.data$Significant = ifelse(plot.data$SGPV == 0, ifelse(plot.data$estimate <0 ,"Significantly Increased","Significantly Decreased"),"Inconclusive")
    }
   
    tmp$X1 = gsub("-","",tmp$X1)
@@ -881,7 +891,8 @@ shinyApp(
                          c("SGPV","Raw","FDR")),
         
         
-        actionButton("plot.button", "Plot data"),
+        actionButton("plot.br.button", "Plot Brain"),
+        actionButton("plot.rgn.button", "Plot Region"),
         downloadButton('downloadPlot','Download Brain Plot'),
         downloadButton('downloadData','Download Results'),
 
@@ -915,6 +926,19 @@ shinyApp(
       vals$upld.file <- upld.file
       
     })
+    
+    observeEvent(input$lvl,{
+      if( length(vals$upld.file)>0){
+        if(input$lvl == "daughter"){
+            updateSelectInput(session=session,inputId="Region", label="Which region to plot raw data",
+                             choices=unique(vals$upld.file$daughter))
+            } else {
+              
+              updateSelectInput(session=session,inputId="Region", label="Which region to plot raw data",
+                             choices=unique(vals$upld.file$parent))
+            } 
+      }
+    })
 
     observeEvent(input$run.button,{
       if(length(vals$upld.file)==0){
@@ -946,9 +970,13 @@ shinyApp(
           updateSelectInput(session=session,inputId="plot.con", label="Which strata to plot brain",
                            choices=gsub("^.*?_","",gsub("^.*?_","",c(unique(strats)))))
         
+          if(input$lvl == "daughter"){
           updateSelectInput(session=session,inputId="Region", label="Which region to plot raw data",
                            choices=unique(upld.file$daughter))
-          
+          } else {
+            updateSelectInput(session=session,inputId="Region", label="Which region to plot raw data",
+                           choices=unique(upld.file$parent))
+          } 
 
           # print(upld.file[upld.file$strata == "Su3_left_WT_3_None",])
           full_results  = rbindlist(lapply(strats, function(x){
@@ -987,17 +1015,19 @@ shinyApp(
       }
     })
   
-   observeEvent(input$plot.button,{  
+   observeEvent(input$plot.br.button,{  
       if(length(vals$full_results)>0){
         # print(c(unique(vals$full_results$grouping),input$plot.con,input$fig, input$lvl))
-        pl <-process_p_plots(plot.data=vals$full_results[vals$full_results$grouping == input$plot.con ,],fig=input$fig,input$p.plot,input$lvl)
+        
+        print(head(vals$full_results))
+        pl <-process_p_plots(plot.data=vals$full_results[vals$full_results$grouping == input$plot.con  ,],fig=input$fig,input$p.plot,input$lvl)
     
         output$pplt <-  renderPlot({p <- ggplot(pl, aes(x = x, y = y)) +
         geom_polygon(aes(fill = Significant, group = unique),color="black",linewidth=.25) +
         scale_y_reverse()+ facet_wrap(~contrast)+
         theme_classic(12)+
         coord_fixed() +
-        scale_fill_manual(values=c("Inconclusive" = "white","Significant" = "red"),na.value="white")+
+        scale_fill_manual(values=c("Inconclusive" = "white","Significantly Increased" = "red","Significantly Decreased" = "blue"),na.value="white")+
         theme(axis.line=element_blank(),
               axis.text.x=element_blank(),
               axis.text.y=element_blank(),
@@ -1018,29 +1048,40 @@ shinyApp(
     
               print(p)})
         
+     observeEvent(input$plot.rgn.button,{
         rpl <- vals$upld.file
         strata = c("genotype","treatment","mpi","marker")
         strata = strata[strata != input$comp]
         cols=c(strata)
         rpl = tidyr::unite(rpl, "strata", cols)
         colnames(rpl)[colnames(rpl) == input$comp] = "group"
-        rpl = rpl[rpl$strata == input$plot.con & rpl$daughter== input$Region,]
-        # print(c(colnames(rpl),input$comp))
         
-        output$rawpplt <-  renderPlot({p2 <- ggplot(rpl, aes(x = group , y = ZachValue,shape=sex,color= group)) +
+        if(input$lvl == "daughter"){
+          rpl = rpl[rpl$strata == input$plot.con & rpl$daughter== input$Region,]
+        } else {
+           rpl = rpl[rpl$strata == input$plot.con & rpl$parent == input$Region,]
+        }
+        # print(c(colnames(rpl),input$comp))
+      
+        output$rawpplt <-  renderPlot({p2 <- ggplot(rpl, aes(x = group , y = ZachValue,shape=daughter,color= group,alpha=sex)) +
         geom_boxplot(aes(group=group),outlier.size=-1) +         
-        geom_jitter(size=2, height=0,width=.25 ) +
-        facet_wrap(~side)+
+        geom_jitter(size=2, height=0,width=.25 ) + 
+        facet_grid(~side)+
         scale_color_viridis_d()+
         theme_classic(14) +
-        xlab("")+ylab("Value")
-        theme(legend.title = element_blank())
+        xlab("")+ylab("Value")+scale_alpha_discrete(range=c(0.25,1)) +
+        theme(legend.title = element_blank(),strip.background = element_blank())
     
+              if(input$lvl == "parent"){
+                p2 = p2 + ggtitle(rpl$parent[1])
+              } else {
+                p2 = p2 + ggtitle(rpl$daughter[1])
+              }
               vals$p2 <- p2
     
               print(p2)})
         
-        
+     })
         
         
          output$downloadPlot <- downloadHandler(

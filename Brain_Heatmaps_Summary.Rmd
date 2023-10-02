@@ -178,6 +178,8 @@ library(MASS)
 library(gridExtra)
 library(sgpv)
 
+options(shiny.maxRequestSize=30*1024^2)
+
 theme_opt = theme_classic(11) + theme(axis.text=element_text(size=11,family="Arial",color="black"),plot.title=element_text(size=11,family="Arial",color="black"),axis.title=element_text(size=11,family="Arial",color="black"),strip.text=element_text(size=11,family="Arial",color="black"),axis.text.x=element_text(size=11,family="Arial",angle=60,hjust=1,color="black"))  
 
 
@@ -196,8 +198,8 @@ rgns = readRDS("flippedTreeAssignments.rds")
   
   
 # This code breaks Daniella's large rds file, which has all 132 figures into 132 individual feather files for better efficiency
-# data = readRDS("/data/home/zachary.madaj/svgData.rds")
-# data=data[! data$X1 %in% c( "VS","fiber tracts"),]
+# data = readRDS("/data/home/zachary.madaj/Rprojects/svgData.rds")
+# data=data[! data$X1 %in% c( "VS","VL","SEZ","RC","chpl","chfl","IVF","V3","AQ","V4","V4r","c","fiber tracts"),]
 # 
 # 
 # for(i in unique(data$keyName)){
@@ -206,7 +208,28 @@ rgns = readRDS("flippedTreeAssignments.rds")
 #   tmp$X1 = gsub("_","",tmp$X1)
 #   tmp$X1 = gsub("-","",tmp$X1)
 #   tmp=subset(tmp,select = -c(hemi))
-#   fst::write_fst(tmp[as.numeric(as.character(rownames(tmp))) %% 6 == 1,], paste0('/data/home/zachary.madaj/Allen_Brain_Shiny_App/','data_',i,'.fst'), compress = 70)
+#   fst::write_fst(tmp[as.numeric(as.character(rownames(tmp))) %% 6 == 1,], paste0('/data/home/zachary.madaj/Rprojects/Allen_Brain_Shiny_App/','data_',i,'.fst'), compress = 70)
+# 
+# }
+# 
+
+# This code is the updated version that takes Daniella's rds files, and turns them into 132 individual feather files for better efficiency
+# for(i in 75){
+# 
+#   data = readRDS(paste0("/data/home/zachary.madaj/Rprojects/Allen_Brain_Shiny_App/",i,"svgFile.rds"))
+# 
+#   data$X1 = data$region
+# 
+#   data=data[! data$X1 %in% c( "VS","VL","SEZ","RC","chpl","chfl","IVF","V3","AQ","V4","V4r","c","fiber tracts"),]
+# 
+#   tmp = data[data$keyName==i,]
+#   tmp$X1 = tolower(paste0(tmp$X1,"_",tmp$hemi))
+#   tmp$X1 = gsub("_","",tmp$X1)
+#   tmp$X1 = gsub("-","",tmp$X1)
+#   # tmp$unique = paste0(tmp$unique,tmp$id)
+#   tmp=subset(tmp,select = -c(hemi))
+# 
+#   fst::write_fst(tmp[as.numeric(as.character(rownames(tmp))) %% 6 == 1,], paste0('/data/home/zachary.madaj/Rprojects/Allen_Brain_Shiny_App/','data_',i,'.fst'), compress = 70)
 # }
 
 #Lemon Squeezer function for betareg
@@ -232,11 +255,16 @@ This app is free to use and modify as you (the user) see fit. To reference this 
 
 ```{r}
 
-process_plots = function(plot.data,fig,sum.lvl,m,k,g,t,l){
+process_plots = function(plot.data,fig,sum.lvl,m,k,g,t,l,s){
    if(m == "All"){m = unique(plot.data$mpi)}
    if(g == "All"){g = unique(plot.data$genotype)}
    if(t == "All"){t = unique(plot.data$treatment)}
    if(k == "All"){k = unique(plot.data$marker)}
+  sex.sw = FALSE 
+  if(s == "Averaged"){
+    sex.sw = TRUE 
+   } 
+   if(s == "All" | s == "Averaged"){s = unique(plot.data$sex)}
   
      tmp = read.fst(path=paste0('data_',fig,'.fst'))
   
@@ -258,19 +286,33 @@ process_plots = function(plot.data,fig,sum.lvl,m,k,g,t,l){
               data= subset(plot.data[plot.data$genotype %in% g & 
                  plot.data$treatment %in% t &
                  plot.data$mpi %in% m &
-                  plot.data$marker %in% k ,],
+                 plot.data$marker %in% k &
+                 plot.data$sex %in% s,],
                  select=c(X1,Proportion,genotype,treatment,mpi,marker,sex,daughter)),
               function(x) {median(x,na.rm=T)})
      
-     
-     agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1 + daughter,
+
+     if(!sex.sw){
+       
+              agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1 + daughter+sex,
+       data= agg.d,
+       function(x) {median(x,na.rm=T)})
+              
+       agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1+sex,
+                data= agg.d,
+                function(x) {median(x,na.rm=T)})
+     } else{
+       
+       agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1 + daughter,
               data= agg.d,
               function(x) {median(x,na.rm=T)})
-     
-     
-     agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1,
-              data= agg.d,
-              function(x) {median(x,na.rm=T)})
+       
+       agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1,
+                data= agg.d,
+                function(x) {median(x,na.rm=T)})
+       agg.d$sex = "Both"
+
+     }
      
     raw = agg.d
 
@@ -280,13 +322,25 @@ process_plots = function(plot.data,fig,sum.lvl,m,k,g,t,l){
               data= subset(plot.data[plot.data$genotype %in% g & 
                  plot.data$treatment %in% t &
                  plot.data$mpi %in% m &
-                  plot.data$marker %in% k,],
+                 plot.data$marker %in% k &
+                 plot.data$sex %in% s,],
                  select=c(X1,Proportion,genotype,treatment,mpi,marker,sex,daughter)),
               function(x) {mean(x,na.rm=T)})
 
      # colnames(agg.d)[colnames(agg.d) == "logit(Proportion)"] = "Proportion"
 
-     
+     if( ! sex.sw){
+
+       agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1 + daughter+sex,
+                data= agg.d,
+                function(x) {mean(x,na.rm=T)})
+       
+  
+       agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1+sex,
+                data= agg.d,
+                function(x) {mean(x,na.rm=T)})
+       
+     } else {
      agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1 + daughter,
               data= agg.d,
               function(x) {mean(x,na.rm=T)})
@@ -295,15 +349,20 @@ process_plots = function(plot.data,fig,sum.lvl,m,k,g,t,l){
      agg.d = aggregate(Proportion ~ genotype +treatment + mpi+marker+X1,
               data= agg.d,
               function(x) {mean(x,na.rm=T)})
-    raw=agg.d
+    
+     agg.d$sex = "Both"
+       
+     }
+      raw=agg.d
     # raw$Proportion = expit(raw$Proportion)
     raw$mouse = "Mean"
    } else {
      raw = subset(plot.data[plot.data$genotype %in% g & 
                  plot.data$treatment %in% t &
                  plot.data$mpi %in% m &
-                 plot.data$marker %in% k,],
-                 select=c(mouse,X1,Proportion,genotype,treatment,mpi,marker))
+                 plot.data$marker %in% k&
+                 plot.data$sex %in% s,],
+                 select=c(mouse,X1,Proportion,genotype,treatment,mpi,marker,sex))
    }
    # raw$Proportion = 100 * raw$Proportion
    # colnames(raw)[colnames(raw) == "Proportion"] = "Percent"
@@ -324,11 +383,15 @@ process_plots = function(plot.data,fig,sum.lvl,m,k,g,t,l){
    tmp$X1 = gsub("-","",tmp$X1)
    tmp$X1 = gsub("_","",tmp$X1)
    if(sum.lvl != "Individual"){
-         filler = expand.grid(X1 = unique(tmp$X1[! tmp$X1 %in% raw$X1]), genotype = g,mpi = m, treatment = t, marker = k,mouse = sum.lvl)
+        if(sex.sw){
+         filler = expand.grid(X1 = unique(tmp$X1[! tmp$X1 %in% raw$X1]), genotype = g,mpi = m, treatment = t, marker = k,mouse = sum.lvl,sex="both")
+         } else {
+         filler = expand.grid(X1 = unique(tmp$X1[! tmp$X1 %in% raw$X1]), genotype = g,mpi = m, treatment = t, marker = k,mouse = sum.lvl,sex=s)  
+         }
          filler$Proportion = NA
          
    } else {
-        filler = expand.grid(X1 = unique(tmp$X1[! tmp$X1 %in% raw$X1]), genotype = g,mpi = m, treatment = t, marker = k,mouse = unique(plot.data$mouse)) 
+        filler = expand.grid(X1 = unique(tmp$X1[! tmp$X1 %in% raw$X1]), genotype = g,mpi = m, treatment = t, marker = k,mouse = unique(plot.data$mouse),sex=s) 
         filler$Proportion = NA
    }
    
@@ -347,7 +410,9 @@ shinyApp(
 
     # sidebar to demonstrate various slider options ----
       sidebarPanel(
-        fileInput("annotation","Please input the csv file that has the annotation information."),
+        fileInput("annotation","Please upload ZachTable.csv"),
+        
+        fileInput("color","If desired, upload heatmapColors.rds here"),
         
         numericInput("figure",
                      label = "Figure Number",min = 1, max = 132, value = 96, step =1),
@@ -371,6 +436,10 @@ shinyApp(
         selectInput("mrk", label="markers to Plot",
                          c("All",unique(plot.data$marker))),
         
+        selectInput("sex", label="Sexes to Plot",
+                         c("All","Averaged",unique(plot.data$sex))),
+        
+        
         actionButton("plot.button", "Plot data"),
         
         downloadButton('downloadPlot','Download Plot'),
@@ -389,13 +458,15 @@ shinyApp(
 
   server = function(input, output,session) {
     vals <- reactiveValues(
-      upld.file = NULL
+      upld.file = NULL,
+      lims = NULL,
+      mycols = rev(viridis::inferno(8))
     )
     
    observeEvent(input$annotation,{
       file <- input$annotation
       upld.file <- read.csv(file$datapath,header=T)
-      upld.file$value <- upld.file$displayValue
+      upld.file$value <- as.numeric(as.character(upld.file$displayValue))
         
       # upld.file$Proportion <- lemon(upld.file$value,length(unique(upld.file$mouse)))
       upld.file$Proportion <- upld.file$value
@@ -412,18 +483,31 @@ shinyApp(
       updateSelectInput(session=session,inputId="mrk", label="markers to Plot",
                          choices=c("All",unique(upld.file$marker)))
       
+      updateSelectInput(session=session,inputId="sex", label="Sexes to Plot",
+                         choices=c("All","Averaged",unique(upld.file$sex)))
+      
+      
       vals$upld.file <- upld.file
+      
+      vals$lims = c(upld.file$min[1],upld.file$max[1])
+
   })
     
+   observeEvent(input$color,{
+      file <- input$color
+      vals$mycols <- readRDS(file$datapath)
+   })
+   
     observeEvent(input$plot.button,{
-      ss = process_plots(vals$upld.file,input$figure,input$indv,input$mpi,input$mrk,input$geno,input$tx,input$lvl)
+      print(head(vals$upld.file))
+      ss = process_plots(vals$upld.file,input$figure,input$indv,input$mpi,input$mrk,input$geno,input$tx,input$lvl,input$sex)
  
     output$pplt <-  renderPlot({p <- ggplot(ss, aes(x = x, y = y)) +
     geom_polygon(aes(fill = Proportion, group = unique),color="black",size=.25) +
-    scale_y_reverse()+facet_grid(mouse+mpi+marker+genotype~treatment)+
+    scale_y_reverse()+
     theme_classic(12)+
     coord_fixed() + 
-    scale_fill_gradientn(colours=rev(viridis::inferno(8)),na.value = "grey50",n.breaks=8)+ 
+    scale_fill_gradientn(colours=vals$mycols,na.value = "grey50",limits = vals$lims)+ 
     theme(axis.line=element_blank(),
           axis.text.x=element_blank(),
           axis.text.y=element_blank(),
@@ -439,14 +523,18 @@ shinyApp(
           legend.title = element_blank(),
           legend.key.width = unit(3.5, 'cm'),
           strip.background = element_blank())
-          
+          if (input$sex == "Averaged"){
+            p = p+facet_grid(mouse+mpi+marker+genotype~treatment)
+          } else {
+            p = p +facet_grid(mouse+mpi+marker+genotype+sex~treatment)
+          }
           vals$p <- p 
           
           print(p)})
      output$downloadPlot <- downloadHandler(
            filename = function(){paste("exp_grps_plot",'.svg',sep='')},
            content = function(file){
-            svg(file=file)
+            svg(file=file,width=9)
              plot=print(vals$p)
             dev.off()
            }
@@ -568,7 +656,7 @@ process_plots_multi = function(plot.data,fig,sum.lvl,m,k,g,t,l){
     } else {
       tmp = tmp[gsub("left","",gsub("right","",tmp$X1)) %in% na.omit(tolower(rgns$daughter)),]
     }
-    tmp$unique = paste0(tmp$unique,tmp$X1)
+    tmp$unique = paste0(tmp$unique,tmp$X1,tmp$id)
     tmp$X1 = gsub("-","",tmp$X1)
     tmp$X1 = gsub("_","",tmp$X1)
     tmp$Figure = rep(f)
@@ -598,8 +686,10 @@ shinyApp(
 
     # sidebar to demonstrate various slider options ----
       sidebarPanel(
-        fileInput("annotation","Please input the csv file that has the annotation information."),
+        fileInput("annotation","Please upload ZachTable.csv"),
         
+        fileInput("color","If desired, upload heatmapColors.rds here"),
+       
         # numericInput("figure",
         #              label = "Figure Numbers",min = 1, max = 132, value = 96, step =1),
         # 
@@ -646,14 +736,18 @@ shinyApp(
   server = function(input, output,session) {
   
     vals <- reactiveValues(
-      upld.file = NULL
+      upld.file = NULL,
+      lims = NULL,
+      mycols = rev(viridis::inferno(8))
     )  
-    
+  
+      
   observeEvent(input$annotation,{
       file <- input$annotation
       upld.file <- read.csv(file$datapath,header=T)
-      upld.file$value <- upld.file$displayValue
-        
+      upld.file$value <- as.numeric(as.character(upld.file$displayValue))
+      # upld.file$value <- upld.file$displayValue
+
       # upld.file$Proportion <- lemon(upld.file$value,length(unique(upld.file$mouse)))
       upld.file$Proportion <- upld.file$value
       updateSelectInput(session=session,inputId="mpi", label="Which mpi",
@@ -669,8 +763,14 @@ shinyApp(
                          choices=c(unique(upld.file$marker)))
       
       vals$upld.file <- upld.file
-      
+      vals$lims = c(upld.file$min[1],upld.file$max[1])
+
   })
+  
+  observeEvent(input$color,{
+    file <- input$color
+    vals$mycols <- readRDS(file$datapath)
+})
   
   observeEvent(input$plot.button,{    
     ss  = process_plots_multi(vals$upld.file,input$figure,input$indv,input$mpi,input$mrk,input$geno,input$tx,input$lvl)
@@ -680,7 +780,7 @@ shinyApp(
   scale_y_reverse()+facet_wrap(~Figure,ncol=3)+
   theme_classic(12)+
   coord_fixed() + 
-  scale_fill_gradientn(colours=rev(viridis::inferno(8)),na.value = "grey50",n.breaks=8)+ 
+  scale_fill_gradientn(colours=vals$mycols,na.value = "grey50",limits=vals$lims)+ 
   theme(axis.line=element_blank(),
         axis.text.x=element_blank(),
         axis.text.y=element_blank(),
@@ -706,7 +806,7 @@ shinyApp(
    output$downloadPlot <- downloadHandler(
          filename = function(){paste("multi_fig_plot",'.svg',sep='')},
          content = function(file){
-          svg(file=file)
+          svg(file=file,width=9)
            plot=print(vals$p)
           dev.off()
          }
@@ -734,6 +834,8 @@ shinyApp(
 
 ## Analysis
 
+* Users may now select a 'custom' contrast where they pick two groups to analyze. This functionality should really only be used to compare a specific group to the baseline control or reference group (eg mutant_450_6 to WT_0_6).  You can make within strata comparisons  (eg WT vs mutant within the same treatment + marker + MPI), but if there are more than 2 groups you may notice some discrepancies between the 'custom' comparisons and the 'genotype' comparison; that's because when we model  >2 groups (eg a WT, mutant A, mutant B, and double mutant) we get a bit more power by having more accurate variance estimations (all four genotypes in this example contribute to the variance estimates).
+
 * <span style="color: red;"> The analysis method is robust linear regression on rankit transformed outcomes. This method was chosen as there are often strata with no pathology (true zeros) while another comparative strata has mainly non-zeros. This analysis seeks to answer the question, which regions have more pathology.  An alternative method would be zero-inflated beta regression. However, this method is very time-consuming, but potentially more powerful. This app does not implement this method, but it may become available in future versions. Parent regions are included as fixed-effects as opposed to random to save compute time and because there are only a few daughter regions per parent. A mixed-effects model could yield better estimates of the standard error, but for fast and flexible analyses this was a calculated compromise.  For more information on second generation p-values, please view the publications: https://doi.org/10.1080/00031305.2018.1537893 and https://doi.org/10.1371/journal.pone.0188299. Another alternate method is a GAM mixed-effects model to account for spatial correlation across the entire brain; this is the most complicated model, but almost certainly the most powerful as it will have the most complete characterization of the covariance matrix. </span>  
 
 
@@ -741,19 +843,37 @@ shinyApp(
 
 rankit = function(t) {qnorm((rank(t)-0.5)/length(t))}
 
+models = function(test,method,strat){
+  
+  if(any(grepl("WT",fixed=T,test$group))){
+    test$group = factor(test$group,levels=c(unique(test$group[grepl("WT",test$group,fixed=T)]),unique(test$group[!grepl("WT",test$group,fixed=T)])))
+  }
 
-models = function(test,method){
-    
-    
+  if(any(grepl("+/+",fixed=T,test$group))){
+    test$group = factor(test$group,levels=c(unique(test$group[grepl("+/+",test$group,fixed=T)]),unique(test$group[!grepl("+/+",test$group,fixed=T)])))
+  }
+  
+  #Adding this here to make an update easier, this is purely convenience to make the code below work
+  if(strat == "sex"){
+    test$sex = test$group
+  }
+  # print(head(test))
+  
   res = NULL
   if(method == "Beta"){
     #Future option
   } else {
     if(method == "Ordinal"){
-      if(length(unique(test$daughter)>1)){
-        if(length(unique(test$sex)>1)){
-          fit = try(rlm(rankit(ZachValue)~sex+daughter*group,data=test,maxit=100),
+      if(length(unique(test$daughter))>1){
+        if(length(unique(test$sex))>1){
+          if(strat == "sex"){
+            fit = try(rlm(rankit(ZachValue)~daughter*group,data=test,maxit=100),
                     silent=T)
+          } else {
+            fit = try(rlm(rankit(ZachValue)~sex + daughter*group,data=test,maxit=100),
+                    silent=T)
+          }
+
         } else {
           fit = try(rlm(rankit(ZachValue)~daughter*group,data=test,maxit=100),
                     silent=T)
@@ -776,10 +896,14 @@ models = function(test,method){
           }
         }
         else {
-          if(length(unique(test$sex)>1)){
-            fit = rlm(rankit(ZachValue)~sex+group,data=test,maxit=100)
+          if(length(unique(test$sex))>1){
+           if(strat == "sex"){
+              fit = try(rlm(rankit(ZachValue)~group,data=test,maxit=100))
+           } else {
+              fit = try(rlm(rankit(ZachValue)~sex+group,data=test,maxit=100))
+           }
           } else {
-             fit = rlm(rankit(ZachValue)~group,data=test,maxit=100)
+             fit = try(rlm(rankit(ZachValue)~group,data=test,maxit=100))
           }
             if(! inherits(fit,"try-error")){
               res = suppressMessages( rbind(data.frame(strata = test$strata[1],parent = gsub("_.*","",test$strata[1]), confint(emmeans(fit,pairwise~group,adjust="none")$contrasts),daughter =  gsub("_.*","",test$strata[1])),
@@ -868,8 +992,9 @@ shinyApp(
                           min=5,max=30,step=5,value=5),
 
         selectInput("comp", label="What effect would you like to test?",
-                         c("genotype","mpi","treatment","marker")),
+                         c("genotype","mpi","treatment","marker","sex","custom")),
 
+        
         selectInput("method", label="Which regression method?",
                          c("Ordinal")),
         
@@ -878,7 +1003,7 @@ shinyApp(
         numericInput("fig",
              label = "Figure Number to plot",min = 1, max = 132, value = 96, step =1),
 
-        selectInput(inputId="plot.con", label="Which strata for brain plot",
+        selectInput(inputId="plotcon", label="Which strata for brain plot",
                          choices=""),
         
         selectInput(inputId="Region", label="Which Region to plot raw data",
@@ -917,12 +1042,12 @@ shinyApp(
     observeEvent(input$annotation,{
       file <- input$annotation
       upld.file <- read.table(file$datapath,header=T,sep=",")
-      upld.file = subset(upld.file,select= - c(X, Region.ID,displayValue))
+      upld.file = subset(upld.file,select= - c(X, Region.ID))
       upld.file$treatment = as.character(upld.file$treatment)
       upld.file$mpi = as.character(upld.file$mpi)
       upld.file$genotype = as.character(upld.file$genotype)
       upld.file$marker = as.character(upld.file$marker)
-      
+      upld.file$sex = as.character(upld.file$sex)
       vals$upld.file <- upld.file
       
     })
@@ -939,37 +1064,86 @@ shinyApp(
             } 
       }
     })
-
+    
+    observeEvent(input$comp,{
+      if(input$comp == "custom"){
+        
+        all_combos = unique(tidyr::unite(vals$upld.file, "strata", c("genotype","treatment","mpi","marker"))$strata)
+        
+        insertUI(selector = "#comp",where = "afterEnd",
+           ui = selectInput("cgroup2",label="Please select the second group you'd like to compare", choices = all_combos ))
+        
+        insertUI(selector = "#comp",where = "afterEnd",
+           ui = selectInput("cgroup1",label="Please select the first group you'd like to compare", choices = all_combos ))
+         
+      } else {
+        removeUI(selector = "div:has(>> #cgroup1)")
+        removeUI(selector = "div:has(>> #cgroup2)")
+      }
+    })
+    
     observeEvent(input$run.button,{
       if(length(vals$upld.file)==0){
         output$print <- renderText({print("Please upload a data file first")})
       } else {
-        strata = c("genotype","treatment","mpi","marker")
-        strata = strata[strata != input$comp]
-        cols=c("parent","side",strata)
+
+        if(input$comp == "sex"){
+          strata = c("genotype","treatment","mpi","marker","sex")
+          strata = strata[strata != input$comp]
+        } else if(input$comp == "custom"){
+          strata = c("genotype","treatment","mpi","marker")
+        } else {
+          strata = c("genotype","treatment","mpi","marker")
+          strata = strata[strata != input$comp]
+        }
         upld.file = vals$upld.file
-        upld.file = tidyr::unite(upld.file, "strata", cols)
-        colnames(upld.file)[colnames(upld.file) == input$comp] = "group"
-  
- 
+        
+        if(input$comp == "custom"){ 
+          upld.file = tidyr::unite(upld.file, "group", strata)
+          upld.file = tidyr::unite(upld.file,"strata" ,c("parent","side"))
+        } else {
+          cols=c("parent","side",strata)
+          upld.file = tidyr::unite(upld.file, "strata", cols)
+        }
+        
+        if(input$comp != "custom"){ 
+          colnames(upld.file)[colnames(upld.file) == input$comp] = "group"
+        } else {
+          upld.file = upld.file[upld.file$group %in% c(input$cgroup1, input$cgroup2),]
+        }
+        
         if(length(unique(upld.file$group))<2){
           output$print <- renderText({print("Not enough levels to test")})
         } else {
 
-          filt = as.data.frame(table(subset(upld.file,select = c(strata,sex,group))))
-          
+          if(input$comp == "sex"){
+            filt = as.data.frame(table(subset(upld.file,select = c(strata,group))))
+          } else {
+            filt = as.data.frame(table(subset(upld.file,select = c(strata,sex,group))))
+          }
           # unlist(lapply(unique(filt$strata), function(z) {if(sum(as.numeric(I(filt[filt$strata == z,]$Freq>2)))>2){return(z)}}))
           # 
-          
-          filt.p2 = as.data.frame(table(filt[filt$Freq>2,1:2]))
-          
+          if(input$comp == "sex"){
+            filt.p2 = as.data.frame(table(filt[filt$Freq>2,1]))
+          } else {
+            filt.p2 = as.data.frame(table(filt[filt$Freq>2,1:2]))
+          }
           ix = filt.p2$strata[filt.p2$Freq < 2]
-          
-          strats = unique(upld.file$strata)[! unique(upld.file$strata) %in% ix]
-          
-          updateSelectInput(session=session,inputId="plot.con", label="Which strata to plot brain",
+          if(input$comp == "sex"){
+            # print(head(ix))
+            # print(head(upld.file))
+            strats = unique(upld.file$strata)[! unique(upld.file$strata) %in% ix]
+          } else {
+            strats = unique(upld.file$strata)[! unique(upld.file$strata) %in% c(ix)]
+
+          }
+          if(input$comp == "custom"){
+            removeUI(selector = "div:has(>> #plotcon)")
+            upld.file$group = factor(upld.file$group,levels=c(input$cgroup1,input$cgroup2))
+          } else {
+            updateSelectInput(session=session,inputId="plotcon", label="Which strata to plot brain",
                            choices=gsub("^.*?_","",gsub("^.*?_","",c(unique(strats)))))
-        
+          }
           if(input$lvl == "daughter"){
           updateSelectInput(session=session,inputId="Region", label="Which region to plot raw data",
                            choices=unique(upld.file$daughter))
@@ -979,9 +1153,11 @@ shinyApp(
           } 
 
           # print(upld.file[upld.file$strata == "Su3_left_WT_3_None",])
+          print(input$comp)
+          # print(head(strats,20))
           full_results  = rbindlist(lapply(strats, function(x){
             updateProgressBar(session = session, id = "pb4", value = (which(x == strats)/length(strats))*100)
-            return(models(upld.file[upld.file$strata == x,],input$method))}),use.names=TRUE)
+            return(models(upld.file[upld.file$strata == x,],input$method,input$comp))}),use.names=TRUE)
     
           full_results$contrast = gsub("group",input$comp,full_results$contrast)
           full_results$p = 2*(1-pnorm(abs(full_results$estimate/full_results$SE)))
@@ -1017,11 +1193,14 @@ shinyApp(
   
    observeEvent(input$plot.br.button,{  
       if(length(vals$full_results)>0){
-        # print(c(unique(vals$full_results$grouping),input$plot.con,input$fig, input$lvl))
+        # print(c(unique(vals$full_results$grouping),input$plotcon,input$fig, input$lvl))
         
-        print(head(vals$full_results))
-        pl <-process_p_plots(plot.data=vals$full_results[vals$full_results$grouping == input$plot.con  ,],fig=input$fig,input$p.plot,input$lvl)
-    
+        # print(head(vals$full_results))
+        if(input$comp == "custom"){
+          pl <-process_p_plots(plot.data=vals$full_results,fig=input$fig,input$p.plot,input$lvl)
+        } else {
+          pl <-process_p_plots(plot.data=vals$full_results[vals$full_results$grouping == input$plotcon  ,],fig=input$fig,input$p.plot,input$lvl)
+        }
         output$pplt <-  renderPlot({p <- ggplot(pl, aes(x = x, y = y)) +
         geom_polygon(aes(fill = Significant, group = unique),color="black",linewidth=.25) +
         scale_y_reverse()+ facet_wrap(~contrast)+
@@ -1050,27 +1229,56 @@ shinyApp(
         
      observeEvent(input$plot.rgn.button,{
         rpl <- vals$upld.file
-        strata = c("genotype","treatment","mpi","marker")
-        strata = strata[strata != input$comp]
+        if(input$comp == "sex"){
+          strata = c("genotype","treatment","mpi","marker","sex")
+          strata = strata[strata != input$comp]
+        } else if(input$comp == "custom"){
+          strata = c("genotype","treatment","mpi","marker")
+        } else { 
+          strata = c("genotype","treatment","mpi","marker")
+          strata = strata[strata != input$comp]
+        }
+        
         cols=c(strata)
         rpl = tidyr::unite(rpl, "strata", cols)
-        colnames(rpl)[colnames(rpl) == input$comp] = "group"
+
+        if(input$comp == "custom"){ 
+          rpl$group = factor(as.character(rpl$strata),levels=c(input$cgroup1,input$cgroup2))
+        } else {
+          colnames(rpl)[colnames(rpl) == input$comp] = "group"
+        }
+        
         
         if(input$lvl == "daughter"){
-          rpl = rpl[rpl$strata == input$plot.con & rpl$daughter== input$Region,]
+          if(input$comp == "custom"){
+            rpl = rpl[rpl$daughter== input$Region & rpl$group %in% c(input$cgroup1,input$cgroup2),]
+          } else {
+            rpl = rpl[rpl$strata == input$plotcon & rpl$daughter== input$Region,]
+          }
         } else {
-           rpl = rpl[rpl$strata == input$plot.con & rpl$parent == input$Region,]
+          if(input$comp == "custom"){
+            rpl = rpl[rpl$parent == input$Region & rpl$group %in% c(input$cgroup1,input$cgroup2),]
+          } else {
+            rpl = rpl[rpl$strata == input$plotcon & rpl$parent == input$Region,]
+          }
         }
         # print(c(colnames(rpl),input$comp))
-      
-        output$rawpplt <-  renderPlot({p2 <- ggplot(rpl, aes(x = group , y = ZachValue,shape=daughter,color= group,alpha=sex)) +
+        output$rawpplt <-  renderPlot({
+          if(input$comp == "sex"){
+            p2 <- ggplot(rpl, aes(x = group , y = displayValue,shape=daughter,color= group))
+          } else {
+            p2 <- ggplot(rpl, aes(x = group , y = displayValue,shape=daughter,color= group,alpha=sex))
+          }
+        
+        p2 = p2+
         geom_boxplot(aes(group=group),outlier.size=-1) +         
         geom_jitter(size=2, height=0,width=.25 ) + 
         facet_grid(~side)+
         scale_color_viridis_d()+
         theme_classic(14) +
-        xlab("")+ylab("Value")+scale_alpha_discrete(range=c(0.25,1)) +
-        theme(legend.title = element_blank(),strip.background = element_blank())
+        xlab("")+ylab("displayValue")+scale_alpha_discrete(range=c(0.25,1)) +
+        theme(legend.title = element_blank(),strip.background = element_blank(),
+              axis.text = element_text(angle=45,hjust=1))
     
               if(input$lvl == "parent"){
                 p2 = p2 + ggtitle(rpl$parent[1])
@@ -1087,7 +1295,7 @@ shinyApp(
          output$downloadPlot <- downloadHandler(
                filename = function(){paste("plot",'.svg',sep='')},
                content = function(file){
-                svg(file=file)
+                svg(file=file,width=9)
                  plot=print(vals$p)
                 dev.off()
                }

@@ -1,5 +1,5 @@
 # Mouse_Brain_Heatmap
-rmd with the framework to create Mouse brain heatmaps and analyze data generate by Nuti to useable (https://github.com/DaniellaDeWeerd/Nutil-To-Usable).
+rmd with the framework to create Mouse brain heatmaps and analyze data generate by Nutil to useable (https://github.com/DaniellaDeWeerd/Nutil-To-Usable).
 
 This code was written using SVGs downloaded from The Allen Brain Atlas http://api.brain-map.org/api/v2/svg_download/100883867?groups=28. Please see their terms of service https://alleninstitute.org/legal/terms-use/ to ensure your use of this code fits both the GNU general pubic license 3 and the Allen Insitutes terms of service.  In very brief and overly simplified terms, if this code is used purely for academic purposes, it may be used freely and changed ad libitum, so long as both the image source and this code are properly cited. 
 
